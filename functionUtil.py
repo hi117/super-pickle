@@ -21,50 +21,63 @@ import marshal
 import types
 import pickle
 def packFunction(f):
-  # this function takes a method or function and returns a string
-  return pickle.dumps((f.__name__,marshal.dumps(f.func_code)))
+    '''
+    Returns a string that represents the function
+    '''
+    return (f.__name__,marshal.dumps(f.func_code))
 def unpackFunction(f):
-  s=f[1]
-  name=f[0]
-  # this function takes a string and returns a function or method
-  return types.FunctionType(marshal.loads(s),globals(),name)
+    '''
+    Returns the function that was packed with packFunction
+    '''
+    s = f[1]
+    name = f[0]
+    return types.FunctionType(marshal.loads(s), globals(), name)
 def packClass(c):
-  # this function takes a class and returns a string
-  ignoreList=['__module__','__doc__']
-  o={}
-  for i in dir(c):
-    if i in ignoreList: continue
-    if type(getattr(c,i))==types.MethodType:
-      o[i]=packFunction(getattr(c,i))
-    else:
-      o[i]=getattr(c,i)
-  return pickle.dumps((c.__name__,o))
+    '''
+    Packs a class and returns a string
+    '''
+    ignoreList = ['__module__', '__doc__']
+    o = {}
+    for i in dir(c):
+        if i in ignoreList: continue
+        if type(getattr(c, i)) == types.MethodType:
+            o[i] = packFunction(getattr(c, i))
+        else:
+            o[i] = getattr(c, i)
+    return (c.__name__, o)
 def unpackClass(s):
-  # this function takes a string and returns a class
-  name,c=pickle.loads(s)
-  o=type(name,(object,),{})
-  o.__name__=name
-  for i in c:
-    if type(c[i])==types.TupleType:
-      # its a method
-      setattr(o,i,unpackFunction(c[i]))
-    else:
-      setattr(o,i,c[i])
-  return o
+    '''
+    Unpacks a class packed that was packed with packClass
+    '''
+    name, c = s
+    o = type(name, (object,), {})
+    o.__name__ = name
+    for i in c:
+        if type(c[i]) == types.TupleType:
+            # its a method
+            setattr(o, i, unpackFunction(c[i]))
+        else:
+            setattr(o, i, c[i])
+    return o
 def dumps(a):
-  # determine what a is
-  if type(a) == types.ClassType:
-    return pickle.dumps(('c',packClass(a)))
-  if (type(a) == types.FunctionType) or (type(a) == types.MethodType):
-    return pickle.dumps(('f',packFunction(a)))
-  if type(a) == types.InstanceType:
-    return pickle.dumps(('i',pickle.dumps((pickle.dumps(a),packClass(a.__class__)))))
+    '''
+    Unpacks anything.
+    '''
+    if type(a) == types.ClassType:
+        return pickle.dumps(('c',packClass(a)))
+    if (type(a) == types.FunctionType) or (type(a) == types.MethodType):
+        return pickle.dumps(('f', packFunction(a)))
+    if type(a) == types.InstanceType:
+        return pickle.dumps(('i', (a, packClass(a.__class__))))
 def loads(s):
-  bla=pickle.loads(s)
-  if bla[0]=='c':
-    return unpackClass(bla[1])
-  if bla[0]=='f':
-    return unpackFunction(pickle.loads(bla[1]))
-  if bla[0]=='i':
-    temp=pickle.loads(bla[1])
-    return (temp[0],unpackClass(temp[1]))
+    '''
+    Packs any object.
+    '''
+    bla = pickle.loads(s)
+    if bla[0] == 'c':
+        return unpackClass(bla[1])
+    if bla[0] == 'f':
+        return unpackFunction(bla[1])
+    if bla[0] == 'i':
+        temp = bla[1]
+        return (temp[0], unpackClass(temp[1]))
